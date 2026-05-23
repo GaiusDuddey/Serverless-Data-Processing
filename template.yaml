@@ -1,0 +1,157 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  LocalStack Serverless Order/Inventory Pipeline
+  Event-driven pipeline with SQS, Lambda, DynamoDB, and SNS
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.11
+    MemorySize: 256
+    Environment:
+      Variables:
+        AWS_ENDPOINT_URL: http://host.docker.internal:4566
+        AWS_DEFAULT_REGION: us-east-1
+
+Resources:
+  # ──────────────────────────────────────────────
+  # SQS Queues
+  # ──────────────────────────────────────────────
+  OrdersDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: orders-dlq
+      MessageRetentionPeriod: 1209600  # 14 days
+
+  OrdersQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: orders-queue
+      VisibilityTimeout: 60
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt OrdersDLQ.Arn
+        maxReceiveCount: 3
+
+  # ──────────────────────────────────────────────
+  # DynamoDB Tables
+  # ──────────────────────────────────────────────
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: OrdersTable
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: order_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: order_id
+          KeyType: HASH
+
+  InventoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: InventoryTable
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: sku
+          AttributeType: S
+      KeySchema:
+        - AttributeName: sku
+          KeyType: HASH
+
+  # ──────────────────────────────────────────────
+  # SNS Topic (alerts)
+  # ──────────────────────────────────────────────
+  AlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: order-pipeline-alerts
+
+  # ──────────────────────────────────────────────
+  # S3 Bucket (CSV ingestion)
+  # ──────────────────────────────────────────────
+  OrdersBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: order-pipeline-csv-uploads
+
+  # ──────────────────────────────────────────────
+  # Lambda Functions
+  # ──────────────────────────────────────────────
+  ProducerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ProducerFunction
+      CodeUri: producer/
+      Handler: app.lambda_handler
+      Description: Receives order events via API Gateway, validates, and pushes to SQS
+      Environment:
+        Variables:
+          SQS_QUEUE_URL: !Ref OrdersQueue
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt OrdersQueue.QueueName
+      Events:
+        PostOrder:
+          Type: Api
+          Properties:
+            Path: /orders
+            Method: post
+
+  ConsumerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ConsumerFunction
+      CodeUri: consumer/
+      Handler: app.lambda_handler
+      Description: Reads SQS messages, validates, writes to DynamoDB, publishes SNS alerts
+      Environment:
+        Variables:
+          ORDERS_TABLE_NAME: !Ref OrdersTable
+          INVENTORY_TABLE_NAME: !Ref InventoryTable
+          SNS_TOPIC_ARN: !Ref AlertsTopic
+          SQS_QUEUE_URL: !Ref OrdersQueue
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt AlertsTopic.TopicName
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt OrdersQueue.Arn
+            BatchSize: 10
+            Enabled: true
+
+Outputs:
+  ProducerApiUrl:
+    Description: API Gateway endpoint URL for sending orders
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/orders"
+
+  OrdersQueueUrl:
+    Description: SQS Queue URL for orders
+    Value: !Ref OrdersQueue
+
+  OrdersDLQUrl:
+    Description: Dead Letter Queue URL
+    Value: !Ref OrdersDLQ
+
+  OrdersTableName:
+    Description: DynamoDB Orders table name
+    Value: !Ref OrdersTable
+
+  InventoryTableName:
+    Description: DynamoDB Inventory table name
+    Value: !Ref InventoryTable
+
+  AlertsTopicArn:
+    Description: SNS Topic ARN for pipeline alerts
+    Value: !Ref AlertsTopic
+
+  OrdersBucketName:
+    Description: S3 bucket for CSV uploads
+    Value: !Ref OrdersBucket

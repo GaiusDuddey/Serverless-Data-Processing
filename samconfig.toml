@@ -1,0 +1,25 @@
+# SAM CLI deploy configuration — targeting LocalStack (not real AWS)
+
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "order-pipeline"
+resolve_s3 = true
+s3_prefix = "order-pipeline"
+region = "us-east-1"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
+
+# Override endpoint to point at LocalStack
+parameter_overrides = "ParameterKey=Environment,ParameterValue=local"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.local_invoke.parameters]
+docker_network = "localstack-order-pipeline"
+
+[default.local_start_api.parameters]
+docker_network = "localstack-order-pipeline"
+port = 3000
