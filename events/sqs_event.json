@@ -1,0 +1,15 @@
+﻿{
+  "Records": [
+    {
+      "messageId": "test-msg-001",
+      "receiptHandle": "test-handle",
+      "body": "{\"order_id\": \"ORD-1001\", \"customer_id\": \"CUST-42\", \"sku\": \"WIDGET-XL\", \"quantity\": 3, \"price\": 29.99, \"source\": \"csv_upload\"}",
+      "attributes": {},
+      "messageAttributes": {},
+      "md5OfBody": "test",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-east-1:000000000000:orders-queue",
+      "awsRegion": "us-east-1"
+    }
+  ]
+}

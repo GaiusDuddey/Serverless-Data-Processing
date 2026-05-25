@@ -3,24 +3,18 @@ version: "3.8"
 services:
   localstack:
     container_name: localstack-order-pipeline
-    image: localstack/localstack:latest
+    image: localstack/localstack:3
     ports:
-      - "4566:4566"            # LocalStack Gateway
-      - "4510-4559:4510-4559"  # External services port range
+      - "4566:4566" # LocalStack Gateway
+      - "4510-4559:4510-4559" # External services port range
     environment:
-      - SERVICES=sqs,dynamodb,lambda,s3,sns,cloudwatch,logs,iam,apigateway
       - DEBUG=0
       - DOCKER_HOST=unix:///var/run/docker.sock
       - AWS_DEFAULT_REGION=us-east-1
-      - LAMBDA_EXECUTOR=docker-reuse
-      - PERSISTENCE=1
     volumes:
-      - "${TMPDIR:-/tmp}/localstack:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
-    tmpfs:
-      - /tmp/localstack
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:4566/_localstack/health" ]
       interval: 10s
       timeout: 5s
       retries: 5

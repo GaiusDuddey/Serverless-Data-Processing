@@ -4,14 +4,17 @@ version = 0.1
 
 [default.deploy.parameters]
 stack_name = "order-pipeline"
-resolve_s3 = true
+resolve_s3 = false
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-szpeewupyfop"
 s3_prefix = "order-pipeline"
 region = "us-east-1"
 confirm_changeset = false
 capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
-
-# Override endpoint to point at LocalStack
 parameter_overrides = "ParameterKey=Environment,ParameterValue=local"
+
+# Point SAM to LocalStack instead of real AWS
+[default.deploy.environment_variables]
+AWS_ENDPOINT_URL = "http://localhost:4566"
 
 [default.build.parameters]
 cached = true

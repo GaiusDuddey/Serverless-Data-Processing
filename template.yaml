@@ -12,7 +12,6 @@ Globals:
     Environment:
       Variables:
         AWS_ENDPOINT_URL: http://host.docker.internal:4566
-        AWS_DEFAULT_REGION: us-east-1
 
 Resources:
   # ──────────────────────────────────────────────

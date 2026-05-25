@@ -17,7 +17,7 @@ echo "🔧 Setting up LocalStack resources..."
 
 # ── 1. Dead-Letter Queue ─────────────────────────────────────────────────────
 echo "  📬 Creating orders-dlq..."
-aws --endpoint-url=$ENDPOINT sqs create-queue \
+python -m awscli --endpoint-url=$ENDPOINT sqs create-queue \
     --queue-name orders-dlq \
     --region $REGION \
     --output text > /dev/null
@@ -26,7 +26,7 @@ DLQ_ARN="arn:aws:sqs:${REGION}:${ACCOUNT_ID}:orders-dlq"
 
 # ── 2. Main Orders Queue (with redrive to DLQ) ──────────────────────────────
 echo "  📬 Creating orders-queue (DLQ: maxReceiveCount=3)..."
-aws --endpoint-url=$ENDPOINT sqs create-queue \
+python -m awscli --endpoint-url=$ENDPOINT sqs create-queue \
     --queue-name orders-queue \
     --attributes '{
         "RedrivePolicy": "{\"deadLetterTargetArn\":\"'"$DLQ_ARN"'\",\"maxReceiveCount\":\"3\"}",
@@ -37,7 +37,7 @@ aws --endpoint-url=$ENDPOINT sqs create-queue \
 
 # ── 3. DynamoDB — OrdersTable ────────────────────────────────────────────────
 echo "  🗄️  Creating OrdersTable..."
-aws --endpoint-url=$ENDPOINT dynamodb create-table \
+python -m awscli --endpoint-url=$ENDPOINT dynamodb create-table \
     --table-name OrdersTable \
     --attribute-definitions AttributeName=order_id,AttributeType=S \
     --key-schema AttributeName=order_id,KeyType=HASH \
@@ -47,7 +47,7 @@ aws --endpoint-url=$ENDPOINT dynamodb create-table \
 
 # ── 4. DynamoDB — InventoryTable ─────────────────────────────────────────────
 echo "  🗄️  Creating InventoryTable..."
-aws --endpoint-url=$ENDPOINT dynamodb create-table \
+python -m awscli --endpoint-url=$ENDPOINT dynamodb create-table \
     --table-name InventoryTable \
     --attribute-definitions AttributeName=sku,AttributeType=S \
     --key-schema AttributeName=sku,KeyType=HASH \
@@ -57,7 +57,7 @@ aws --endpoint-url=$ENDPOINT dynamodb create-table \
 
 # ── 5. SNS — Alerts Topic ───────────────────────────────────────────────────
 echo "  🔔 Creating SNS topic: order-pipeline-alerts..."
-TOPIC_ARN=$(aws --endpoint-url=$ENDPOINT sns create-topic \
+TOPIC_ARN=$(python -m awscli --endpoint-url=$ENDPOINT sns create-topic \
     --name order-pipeline-alerts \
     --region $REGION \
     --query 'TopicArn' --output text)
